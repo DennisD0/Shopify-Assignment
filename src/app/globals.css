@@ -237,10 +237,15 @@ legend svg { color: var(--accent); }
 .merchant-card header svg { color: var(--accent); }
 .merchant-card h2 { font-size: 17px; font-weight: 800; }
 .review-line { border-top: 1px solid var(--line); padding: 8px 0; }
-.review-line div { display: grid; flex: 1; }
+.review-line-details { display: grid; flex: 1; min-width: 0; }
+.review-line-actions { display: grid; justify-items: end; flex-shrink: 0; }
+.review-line-actions .button { min-height: 34px; padding: 3px 5px; font-size: 11px; }
 .review-line span, .review-line small { color: var(--muted); font-size: 11px; }
 .review-line strong { font-size: 13px; }
 .merchant-footer { border-top: 1px solid var(--line); padding-top: 8px; display: grid; justify-items: start; gap: 7px; }
+.removed-items h2 { margin-bottom: 7px; }
+.removed-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); }
+.removed-item .button { flex-shrink: 0; }
 .review-summary { position: sticky; top: 12px; }
 .review-summary dl { display: grid; gap: 7px; border-top: 1px solid var(--line); padding: 10px 0; font-size: 12px; }
 .review-summary dl div { display: flex; justify-content: space-between; gap: 8px; }

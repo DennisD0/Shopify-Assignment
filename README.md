@@ -21,7 +21,7 @@ Open [RoomReady on localhost](http://localhost:3000). Demo Mode works with the b
 2. Choose **Balanced Comfort**. The starting product subtotal is **$1,495**.
 3. Lock the **August Linen Sofa**. Select the coffee table hotspot and switch to **Forma Travertine Table**. Watch the coffee table change in **Furniture preview** as the subtotal rises to **$1,635**. **Undo last change** restores the previous furniture layer and price.
 4. Open **Make It Fit My Budget**. The proposed table substitution saves **$250** and brings the subtotal to **$1,385**. Apply it and check that the sofa is still locked.
-5. Open **Review My Bundle** and preview either merchant cart. The app shows each variant, merchant, quantity, and price, plus shipping and tax status.
+5. Open **Review My Bundle**. Remove or add back furniture to update the merchant carts and subtotal, then click **Order** to simulate an order for that merchant. The review shows each variant, quantity, and price, plus shipping and tax status.
 
 On a phone, swipe through the furniture cards or the alternatives in the bottom sheet. The editor keeps the subtotal and bundle review action at the bottom of the screen.
 
