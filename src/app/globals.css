@@ -243,6 +243,16 @@ legend svg { color: var(--accent); }
 .review-line span, .review-line small { color: var(--muted); font-size: 11px; }
 .review-line strong { font-size: 13px; }
 .merchant-footer { border-top: 1px solid var(--line); padding-top: 8px; display: grid; justify-items: start; gap: 7px; }
+.delivery-options { margin: 12px 0; display: grid; gap: 6px; }
+.delivery-options legend { margin-bottom: 6px; font-size: 13px; }
+.delivery-option { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.delivery-option:has(:checked) { background: var(--lavender); border-color: #d4c3ea; }
+.delivery-option input { accent-color: var(--accent); }
+.delivery-option-copy { display: flex; align-items: center; flex-wrap: wrap; gap: 3px 7px; }
+.delivery-option-copy small { width: 100%; color: var(--muted); font-size: 11px; }
+.delivery-fastest { display: inline-flex; align-items: center; gap: 3px; color: var(--accent-dark); font-size: 10px; font-weight: 750; }
+.merchant-estimate { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; font-size: 12px; }
+.merchant-estimate span { color: var(--muted); }
 .removed-items h2 { margin-bottom: 7px; }
 .removed-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); }
 .removed-item .button { flex-shrink: 0; }
@@ -250,6 +260,15 @@ legend svg { color: var(--accent); }
 .review-summary dl { display: grid; gap: 7px; border-top: 1px solid var(--line); padding: 10px 0; font-size: 12px; }
 .review-summary dl div { display: flex; justify-content: space-between; gap: 8px; }
 .review-summary dd { color: var(--muted); }
+.delivery-zip { display: grid; gap: 5px; padding-bottom: 10px; }
+.delivery-zip label { font-weight: 750; font-size: 12px; }
+.delivery-zip small { font-weight: 500; color: var(--muted); font-size: 11px; }
+.delivery-zip label small { margin-left: 4px; }
+.delivery-zip div { display: flex; gap: 6px; }
+.delivery-zip input { min-width: 0; flex: 1; padding: 6px 9px; border: 1px solid var(--line); border-radius: 8px; }
+.delivery-zip .button { min-height: 36px; }
+.review-estimated-total { padding-top: 6px; border-top: 1px solid var(--line); font-weight: 750; }
+.review-estimated-total dd { color: var(--ink); }
 
 @media (min-width: 1400px) {
   .site-inner { width: min(1264px, calc(100% - 128px)); }

@@ -1,13 +1,14 @@
 import { z } from "zod";
 import { money } from "@/lib/budget";
 import { demoInventory } from "@/lib/demo";
+import { demoDeliveryOptions, quoteDemoDelivery } from "@/lib/demo-delivery";
 import { lookupCatalog } from "@/lib/server/catalog";
 import { buyerIP } from "@/lib/server/mcp";
 import { createCart, createCheckout, discoverMerchant, getCart, handoffUrl } from "@/lib/server/ucp";
 import { categoryInput, modeInput, variantInput, zipInput } from "@/lib/server/input";
 
 const input = z.object({
-  mode: modeInput, zip: zipInput, lines: z.array(z.object({
+  mode: modeInput, zip: zipInput, deliveryOption: z.enum(demoDeliveryOptions).optional(), lines: z.array(z.object({
     variantId: z.string().max(120), quantity: z.number().int().min(1).max(10),
     expectedPrice: z.number().int().nonnegative(), category: categoryInput,
   })).min(1).max(5),
@@ -17,14 +18,17 @@ export const maxDuration = 45;
 export async function POST(request: Request) {
   const parsed = input.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "This merchant bundle is invalid." }, { status: 400 });
-  const { mode, lines, zip } = parsed.data;
+  const { mode, lines, zip, deliveryOption } = parsed.data;
   const ids = lines.map(line => line.variantId);
   if (new Set(ids).size !== ids.length) return Response.json({ error: "Cart lines must be unique." }, { status: 400 });
   try {
     if (mode === "demo") {
       const items = lines.map(line => demoInventory[line.category].find(p => p.variantId === line.variantId && p.price === line.expectedPrice));
-      if (items.some(p => !p) || new Set(items.map(p => p?.merchant)).size !== 1) throw new Error("Choose sample products from one demo merchant per cart.");
-      return Response.json({ demo: true });
+      const merchant = items[0]?.merchant;
+      if (!merchant || items.some(p => p?.merchant !== merchant)) throw new Error("Choose sample products from one demo merchant per cart.");
+      const delivery = quoteDemoDelivery(merchant, zip)[deliveryOption ?? "standard"];
+      const subtotal = lines.reduce((sum, line) => sum + line.expectedPrice * line.quantity, 0);
+      return Response.json({ demo: true, delivery, total: subtotal + delivery.price });
     }
     if (ids.some(id => !variantInput.safeParse(id).success)) throw new Error("Choose live Shopify variants for this cart.");
     const ip = buyerIP(request);

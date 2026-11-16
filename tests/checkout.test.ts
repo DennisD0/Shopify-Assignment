@@ -2,18 +2,31 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { POST as checkout } from "../src/app/api/checkout/route";
 import { demoInventory } from "../src/lib/demo";
+import { quoteDemoDelivery, type DemoDeliveryOption } from "../src/lib/demo-delivery";
 
 const sofa = demoInventory.sofa[1];
 const lamp = demoInventory.lamp[1];
 const table = demoInventory.table[1];
-const request = (lines: { category: string; variantId: string; price: number }[]) => new Request("http://localhost/api/checkout", {
-  method: "POST", body: JSON.stringify({ mode: "demo", zip: "", lines: lines.map(({ price, ...line }) => ({ ...line, expectedPrice: price, quantity: 1 })) }),
+const request = (lines: { category: string; variantId: string; price: number }[], zip = "", deliveryOption?: DemoDeliveryOption) => new Request("http://localhost/api/checkout", {
+  method: "POST", body: JSON.stringify({ mode: "demo", zip, deliveryOption, lines: lines.map(({ price, ...line }) => ({ ...line, expectedPrice: price, quantity: 1 })) }),
 });
 
 test("demo checkout returns a simulated cart for one merchant without a purchase URL", async () => {
   const response = await checkout(request([sofa, lamp]));
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { demo: true });
+  assert.deepEqual(await response.json(), {
+    demo: true, delivery: quoteDemoDelivery(sofa.merchant, "").standard, total: sofa.price + lamp.price + 2400,
+  });
+});
+
+test("demo checkout quotes Express for the submitted ZIP and totals shipping separately", async () => {
+  const zip = "90210";
+  const options = quoteDemoDelivery(sofa.merchant, zip);
+  assert.ok(options.express.maxDays < options.standard.minDays);
+  assert.ok(options.express.minDays > quoteDemoDelivery(sofa.merchant, "10001").express.minDays);
+  const response = await checkout(request([sofa], zip, "express"));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { demo: true, delivery: options.express, total: sofa.price + 4900 });
 });
 
 test("demo checkout rejects mixed merchants and stale prices", async () => {
