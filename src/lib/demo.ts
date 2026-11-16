@@ -44,7 +44,7 @@ const samples: Record<Category, Sample[]> = {
   ],
 };
 
-const merchants = ["Field & Form", "Oak & Loom", "Juniper House"];
+const merchants = ["Merchant 2", "Merchant 1", "Juniper House"];
 export const demoInventory: Inventory = Object.fromEntries(categories.map((category, categoryIndex) => [
   category,
   samples[category].map(([title, price, variant, width, depth], i): Product => ({

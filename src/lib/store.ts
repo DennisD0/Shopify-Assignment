@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { applyOptimization, fits, swapLine, type optimize } from "./budget";
+import { demoInventory } from "./demo";
 import type { Concept, Line, Mode, Product, Room, RoomResult } from "./types";
 
 export const sampleRoom = "/images/room.webp";
@@ -21,6 +22,30 @@ type Draft = {
   undo: () => void;
   optimize: (proposal: ReturnType<typeof optimize>) => void;
 };
+type SavedDraft = Pick<Draft, "room" | "mode" | "page" | "result" | "concept" | "lines">;
+
+function migrateDemoMerchants(state: unknown): SavedDraft {
+  const draft = state as SavedDraft;
+  if (draft.mode !== "demo") return draft;
+
+  function updateLines(lines: Line[]) {
+    return lines.map(line => {
+      const { product } = line;
+      const current = demoInventory[product.category].find(item => item.variantId === product.variantId);
+      return current ? { ...line, product: { ...product, merchant: current.merchant } } : line;
+    });
+  }
+  function updateConcept(concept: Concept): Concept {
+    return { ...concept, lines: updateLines(concept.lines) };
+  }
+
+  return {
+    ...draft,
+    lines: updateLines(draft.lines),
+    concept: draft.concept && updateConcept(draft.concept),
+    result: draft.result && { ...draft.result, inventory: demoInventory, concepts: draft.result.concepts.map(updateConcept) },
+  };
+}
 export const useRoom = create<Draft>()(persist((set) => ({
   room: initialRoom, mode: "demo", page: 0, lines: [],
   setRoom: (room) => set(s => ({ room: { ...s.room, ...room } })),
@@ -41,6 +66,6 @@ export const useRoom = create<Draft>()(persist((set) => ({
   })),
   undo: () => set(s => s.previous ? { lines: s.previous, previous: undefined } : s),
   optimize: (proposal) => set(s => ({ previous: s.lines, lines: applyOptimization(s.lines, proposal) })),
-}), { name: "roomready-draft-v1", skipHydration: true, partialize: ({ room, mode, page, result, concept, lines }) =>
+}), { name: "roomready-draft-v1", version: 1, migrate: migrateDemoMerchants, skipHydration: true, partialize: ({ room, mode, page, result, concept, lines }) =>
   mode === "live" ? { room, mode, page: 0 as const, lines: [] } : { room, mode, page, result, concept, lines },
 }));
