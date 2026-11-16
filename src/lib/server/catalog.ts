@@ -7,7 +7,8 @@ const endpoint = "https://catalog.shopify.com/api/ucp/mcp";
 const image = z.object({ type: z.string(), url: z.string() });
 const variant = z.object({
   id: z.string(), title: z.string().optional(), price: z.object({ amount: z.number().int().nonnegative(), currency: z.string() }).optional(),
-  media: z.array(image).optional(), availability: z.object({ available: z.boolean() }).optional(), checkout_url: z.string().optional(),
+  media: z.array(image).optional(), checkout_url: z.string().optional(),
+  availability: z.object({ available: z.boolean(), status: z.string().optional(), running_low: z.boolean().optional() }).optional(),
   requires: z.object({ selling_plan: z.boolean().optional(), components: z.boolean().optional() }).optional(),
   seller: z.object({ name: z.string() }).optional(),
 });
@@ -44,6 +45,8 @@ function normalize(entry: z.infer<typeof record>, category: Category, style?: St
       merchant: v.seller.name, merchantOrigin: merchant.origin, price: v.price.amount,
       image: photo?.url ?? "/images/product-placeholder.svg", styles: style ? [style] : [],
       available: v.availability?.available === true,
+      availabilityStatus: v.availability?.status,
+      runningLow: v.availability?.running_low,
     }];
   });
 }

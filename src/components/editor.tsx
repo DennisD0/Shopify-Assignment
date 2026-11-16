@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, ArrowRightLeft, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Lock, LockOpen, ShoppingBag, Undo2, WandSparkles } from "lucide-react";
 import { alternatives, fits, money, optimize, remaining, subtotal } from "@/lib/budget";
+import { demoStockStatus } from "@/lib/demo";
 import { useRoom } from "@/lib/store";
-import { categoryNames, type Category, type Inventory, type Line, type Product, type Strategy } from "@/lib/types";
+import { categoryNames, type Category, type Inventory, type Line, type Mode, type Product, type Strategy } from "@/lib/types";
 import { Button, Panel } from "./ui";
 import { RoomPreview, furnitureCutout, type RoomView } from "./room-preview";
 const strategies: [Strategy, string][] = [["similar", "Similar Price"], ["save", "Save Money"], ["explore", "Explore Styles"]];
@@ -19,8 +20,18 @@ export function BudgetSummary({ lines, budget }: { lines: Line[]; budget: number
   </div>;
 }
 
+function StockStatus({ product, mode }: { product: Product; mode: Mode }) {
+  const status = mode === "demo" ? demoStockStatus(product.id) : product.availabilityStatus;
+  const low = mode === "demo" ? status === "low_stock" : product.runningLow;
+  const tone = !product.available ? "over" : low ? "stock-low" : status === "in_stock" ? "under" : "muted";
+  const label = !product.available ? "Unavailable"
+    : low ? "Low stock"
+    : status === "in_stock" ? "In stock" : "Available to order";
+  return <span className={`stock-status ${tone}`}>{label}</span>;
+}
+
 function ProductLine({ line, onSwap }: { line: Line; onSwap: () => void }) {
-  const { lock, room } = useRoom();
+  const { lock, room, mode } = useRoom();
   const { product } = line;
   const fit = fits(product, room);
   return <article className={`product-line ${line.locked ? "locked" : ""}`}>
@@ -29,6 +40,7 @@ function ProductLine({ line, onSwap }: { line: Line; onSwap: () => void }) {
       <span className="category-label">{categoryNames[product.category]}</span>
       <button className="product-title" onClick={onSwap}>{product.title}</button>
       <span>{product.merchant} <b>·</b> <strong>{money(product.price)}</strong></span>
+      <StockStatus product={product} mode={mode} />
       {fit === false && <small className="over">Exceeds room dimensions</small>}
     </div>
     <div className="line-actions">
@@ -70,7 +82,7 @@ function SwapPanel({ line, onClose, onSwap }: { line: Line; onClose: () => void;
   const options = alternatives(products, current, room, strategy);
   const scroll = (direction: number) => carousel.current?.scrollBy({ left: direction * 230, behavior: "smooth" });
   return <Panel drawer title="Swap & Scroll" description={`Explore alternatives for your ${categoryNames[current.category].toLowerCase()}.`} onClose={onClose}>
-    <div className="current-product"><ProductImage product={current} alt="" /><div><small>Currently selected</small><strong>{current.title}</strong></div><b>{money(current.price)}</b></div>
+    <div className="current-product"><ProductImage product={current} alt="" /><div><small>Currently selected</small><strong>{current.title}</strong><StockStatus product={current} mode={mode} /></div><b>{money(current.price)}</b></div>
     <div className="swap-filters" aria-label="Filter alternatives">{strategies.map(([id, name]) => <button key={id} aria-pressed={strategy === id} onClick={() => { setStrategy(id); carousel.current?.scrollTo({ left: 0 }); }}>{name}</button>)}</div>
     {mode === "live" && remote?.strategy !== strategy && <p role="status" className="muted">Searching Shopify for more options…</p>}
     {remote?.strategy === strategy && remote.error && <p className="notice">{remote.error}</p>}
@@ -82,6 +94,7 @@ function SwapPanel({ line, onClose, onSwap }: { line: Line; onClose: () => void;
           <ProductImage product={product} alt={product.title} />
           <div><h3>{product.title}</h3><p>{product.merchant} · {product.variant}</p>
             <small>{fit === true ? "Fits entered footprint" : product.dimensions ? `${product.dimensions.width} × ${product.dimensions.depth} in` : "Check merchant dimensions"}</small>
+            <StockStatus product={product} mode={mode} />
             <div className="alternative-price"><b>{money(product.price)}</b><span className={delta > 0 ? "over" : "under"}>{delta === 0 ? "Same price" : `${delta > 0 ? "+" : "−"}${money(Math.abs(delta))}`}</span></div>
             <Button variant="outline" onClick={() => onSwap(product)}>Switch to this <ArrowRight size={14} /></Button>
           </div>

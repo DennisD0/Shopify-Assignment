@@ -19,6 +19,8 @@ export type Product = {
   image: string;
   styles: Style[];
   available: boolean;
+  availabilityStatus?: string;
+  runningLow?: boolean;
   dimensions?: { width: number; depth: number };
 };
 export type Line = { product: Product; quantity: number; locked: boolean };

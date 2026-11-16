@@ -45,6 +45,15 @@ const samples: Record<Category, Sample[]> = {
 };
 
 const merchants = ["Merchant 2", "Merchant 1", "Juniper House"];
+const lowStock = new Set(["demo-sofa-2", "demo-table-2", "demo-rug-2", "demo-lamp-5", "demo-storage-5"]);
+const availableToOrder = new Set(["demo-sofa-4", "demo-table-5", "demo-rug-5", "demo-lamp-2", "demo-storage-2"]);
+
+export function demoStockStatus(id: string) {
+  if (lowStock.has(id)) return "low_stock";
+  if (availableToOrder.has(id)) return "available_to_order";
+  return "in_stock";
+}
+
 export const demoInventory: Inventory = Object.fromEntries(categories.map((category, categoryIndex) => [
   category,
   samples[category].map(([title, price, variant, width, depth], i): Product => ({
