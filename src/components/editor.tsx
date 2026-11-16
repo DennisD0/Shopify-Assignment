@@ -1,17 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, ArrowRightLeft, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Images, Lock, LockOpen, Plus, ShoppingBag, Undo2, WandSparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowRightLeft, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Lock, LockOpen, ShoppingBag, Undo2, WandSparkles } from "lucide-react";
 import { alternatives, fits, money, optimize, remaining, subtotal } from "@/lib/budget";
 import { useRoom } from "@/lib/store";
 import { categoryNames, type Category, type Inventory, type Line, type Product, type Strategy } from "@/lib/types";
 import { Button, Panel } from "./ui";
-
-const locations: Record<string, Record<Category, [number, number]>> = {
-  essentials: { sofa: [36, 53], rug: [75, 87], table: [49, 69], lamp: [9, 32], storage: [83, 57] },
-  balanced: { sofa: [54, 57], rug: [73, 85], table: [53, 72], lamp: [36, 28], storage: [91, 60] },
-  elevated: { sofa: [70, 47], rug: [79, 84], table: [55, 65], lamp: [87, 21], storage: [16, 55] },
-};
+import { RoomPreview, furnitureCutout, type RoomView } from "./room-preview";
 const strategies: [Strategy, string][] = [["similar", "Similar Price"], ["save", "Save Money"], ["explore", "Explore Styles"]];
 
 export function BudgetSummary({ lines, budget }: { lines: Line[]; budget: number }) {
@@ -29,7 +24,7 @@ function ProductLine({ line, onSwap }: { line: Line; onSwap: () => void }) {
   const { product } = line;
   const fit = fits(product, room);
   return <article className={`product-line ${line.locked ? "locked" : ""}`}>
-    <button className="product-thumb" onClick={onSwap} aria-label={`View alternatives for ${product.title}`}><img src={product.image} alt="" /></button>
+    <button className="product-thumb" onClick={onSwap} aria-label={`View alternatives for ${product.title}`}><ProductImage product={product} alt="" /></button>
     <div className="product-info">
       <span className="category-label">{categoryNames[product.category]}</span>
       <button className="product-title" onClick={onSwap}>{product.title}</button>
@@ -45,8 +40,13 @@ function ProductLine({ line, onSwap }: { line: Line; onSwap: () => void }) {
   </article>;
 }
 
-function SwapPanel({ line, onClose }: { line: Line; onClose: () => void }) {
-  const { result, room, mode, swap } = useRoom();
+function ProductImage({ product, alt }: { product: Product; alt: string }) {
+  const cutout = furnitureCutout(product);
+  return <img className={cutout ? "cutout-thumbnail" : undefined} src={cutout ?? product.image} alt={alt} />;
+}
+
+function SwapPanel({ line, onClose, onSwap }: { line: Line; onClose: () => void; onSwap: (product: Product) => void }) {
+  const { result, room, mode } = useRoom();
   const [strategy, setStrategy] = useState<Strategy>("similar");
   const [remote, setRemote] = useState<{ strategy: Strategy; products: Product[]; error?: string }>();
   const carousel = useRef<HTMLDivElement>(null);
@@ -70,7 +70,7 @@ function SwapPanel({ line, onClose }: { line: Line; onClose: () => void }) {
   const options = alternatives(products, current, room, strategy);
   const scroll = (direction: number) => carousel.current?.scrollBy({ left: direction * 230, behavior: "smooth" });
   return <Panel drawer title="Swap & Scroll" description={`Explore alternatives for your ${categoryNames[current.category].toLowerCase()}.`} onClose={onClose}>
-    <div className="current-product"><img src={current.image} alt="" /><div><small>Currently selected</small><strong>{current.title}</strong></div><b>{money(current.price)}</b></div>
+    <div className="current-product"><ProductImage product={current} alt="" /><div><small>Currently selected</small><strong>{current.title}</strong></div><b>{money(current.price)}</b></div>
     <div className="swap-filters" aria-label="Filter alternatives">{strategies.map(([id, name]) => <button key={id} aria-pressed={strategy === id} onClick={() => { setStrategy(id); carousel.current?.scrollTo({ left: 0 }); }}>{name}</button>)}</div>
     {mode === "live" && remote?.strategy !== strategy && <p role="status" className="muted">Searching Shopify for more options…</p>}
     {remote?.strategy === strategy && remote.error && <p className="notice">{remote.error}</p>}
@@ -79,11 +79,11 @@ function SwapPanel({ line, onClose }: { line: Line; onClose: () => void }) {
         const delta = product.price - current.price;
         const fit = fits(product, room);
         return <article className="alternative" key={product.variantId}>
-          <img src={product.image} alt={product.title} />
+          <ProductImage product={product} alt={product.title} />
           <div><h3>{product.title}</h3><p>{product.merchant} · {product.variant}</p>
             <small>{fit === true ? "Fits entered footprint" : product.dimensions ? `${product.dimensions.width} × ${product.dimensions.depth} in` : "Check merchant dimensions"}</small>
             <div className="alternative-price"><b>{money(product.price)}</b><span className={delta > 0 ? "over" : "under"}>{delta === 0 ? "Same price" : `${delta > 0 ? "+" : "−"}${money(Math.abs(delta))}`}</span></div>
-            <Button variant="outline" onClick={() => { swap(current.variantId, product); onClose(); }}>Switch to this <ArrowRight size={14} /></Button>
+            <Button variant="outline" onClick={() => onSwap(product)}>Switch to this <ArrowRight size={14} /></Button>
           </div>
         </article>;
       })}</div>
@@ -93,7 +93,7 @@ function SwapPanel({ line, onClose }: { line: Line; onClose: () => void }) {
   </Panel>;
 }
 
-function OptimizationPanel({ onClose }: { onClose: () => void }) {
+function OptimizationPanel({ onClose, onApply }: { onClose: () => void; onApply: () => void }) {
   const { room, lines, mode, result, optimize: approve } = useRoom();
   const [search, setSearch] = useState<{ products: [Category, Product[]][]; partial: boolean }>();
   const needsSearch = mode === "live" && subtotal(lines) > room.budget && lines.some(line => !line.locked);
@@ -129,43 +129,43 @@ function OptimizationPanel({ onClose }: { onClose: () => void }) {
     {proposal.before <= room.budget ? <p className="notice">You’re already within your product budget.</p> : <>
       {!proposal.fitsBudget && <p className="notice"><CircleAlert size={17} /> The least expensive available combination that preserves your locks is still {money(proposal.after - room.budget)} over budget.</p>}
       {proposal.changes.map(({ from, to, savings }) => <div className="optimization-change" key={from.product.variantId}>
-        <img src={to.product.image} alt="" /><div><small>{categoryNames[from.product.category]}</small><strong>{to.product.title}</strong><span>Replaces {from.product.title}</span></div><b className="under">Save {money(savings)}</b>
+        <ProductImage product={to.product} alt="" /><div><small>{categoryNames[from.product.category]}</small><strong>{to.product.title}</strong><span>Replaces {from.product.title}</span></div><b className="under">Save {money(savings)}</b>
       </div>)}
       {!proposal.changes.length && <p className="muted">No lower-cost eligible replacement was found for any unlocked piece.</p>}
       {!!proposal.changes.length && <p className="optimization-saving">Total product savings <strong>{money(proposal.before - proposal.after)}</strong></p>}
     </>}
     <div className="panel-actions"><Button variant="outline" onClick={onClose}>{proposal.changes.length ? "Cancel" : "Back to room"}</Button>
-      {!!proposal.changes.length && <Button onClick={() => { approve(proposal); onClose(); }}>Apply substitutions <ArrowRight size={16} /></Button>}
+      {!!proposal.changes.length && <Button onClick={() => { approve(proposal); onApply(); }}>Apply substitutions <ArrowRight size={16} /></Button>}
     </div>
   </Panel>;
 }
 
 export function Editor() {
-  const { concept, lines, room, previous, undo, navigate } = useRoom();
+  const { concept, lines, room, mode, previous, swap, undo, navigate } = useRoom();
   const [selection, setSelection] = useState<string>();
   const [showOptimize, setShowOptimize] = useState(false);
-  const [showPhoto, setShowPhoto] = useState(false);
+  const [view, setView] = useState<RoomView>("furniture");
+  const [updateMessage, setUpdateMessage] = useState("");
   const [collapsed, setCollapsed] = useState(false);
+  const previewRef = useRef<HTMLElement>(null);
   if (!concept) return null;
   const selected = lines.find(line => line.product.variantId === selection);
-  const hotspots = locations[concept.id] ?? locations.balanced;
+
+  function showChange(message: string) {
+    setView("furniture");
+    setUpdateMessage(message);
+    requestAnimationFrame(() => previewRef.current?.scrollIntoView({ block: "nearest" }));
+  }
+
   return <section>
     <Button variant="ghost" className="back-button" onClick={() => navigate(1)}><ArrowLeft size={16} /> Room concepts</Button>
     <div className="editor-heading"><div><div className="eyebrow">{room.style}</div><h1>Make it yours.</h1><p>{concept.name} · {lines.length} furniture pieces</p></div>
-      {previous && <Button variant="outline" onClick={undo}><Undo2 size={16} /> Undo last change</Button>}
+      {previous && <Button variant="outline" onClick={() => { undo(); showChange("Last change undone."); }}><Undo2 size={16} /> Undo last change</Button>}
     </div>
     <div className="editor-grid">
       <div className="editor-main">
-        <figure className="room-preview">
-          <img src={showPhoto ? room.photo : concept.photo} alt={showPhoto ? "Your reference room" : `${concept.name} furnished room inspiration`} />
-          <div className="room-image-actions">
-            <button aria-pressed={!showPhoto} onClick={() => setShowPhoto(false)}>Inspiration</button>
-            <button aria-pressed={showPhoto} onClick={() => setShowPhoto(true)}>Room photo</button>
-          </div>
-          {!showPhoto && lines.map(({ product }) => <button key={product.category} className="hotspot" style={{ left: `${hotspots[product.category][0]}%`, top: `${hotspots[product.category][1]}%` }}
-            title={categoryNames[product.category]} aria-label={`Explore ${categoryNames[product.category].toLowerCase()} options`} onClick={() => setSelection(product.variantId)}><Plus size={19} /></button>)}
-          <figcaption><Images size={15} /> {showPhoto ? "Reference photo" : "Inspiration photo · Furniture shown may differ from your picks"}</figcaption>
-        </figure>
+        <RoomPreview concept={concept} lines={lines} photo={room.photo} mode={mode} view={view} onView={setView} onSelect={setSelection} previewRef={previewRef} />
+        <div role="status">{updateMessage && <p className="room-update"><Check size={15} />{updateMessage}</p>}</div>
         <div className="optimizer-banner"><div className="feature-icon"><WandSparkles size={22} /></div><div><h3>Keep your favorites.</h3><p>Lock the pieces you love and preview savings on the rest.</p></div>
           <Button variant="outline" onClick={() => setShowOptimize(true)}>Make It Fit My Budget</Button></div>
       </div>
@@ -176,7 +176,14 @@ export function Editor() {
         <div className="editor-budget"><BudgetSummary lines={lines} budget={room.budget} /><Button className="review-button" onClick={() => navigate(3)}><ShoppingBag size={16} /> Review My Bundle <ArrowRight size={16} /></Button></div>
       </aside>
     </div>
-    {selected && <SwapPanel key={selection} line={selected} onClose={() => setSelection(undefined)} />}
-    {showOptimize && <OptimizationPanel onClose={() => setShowOptimize(false)} />}
+    {selected && <SwapPanel key={selection} line={selected} onClose={() => setSelection(undefined)} onSwap={product => {
+      swap(selected.product.variantId, product);
+      setSelection(undefined);
+      showChange(`Replaced ${selected.product.title} with ${product.title}.`);
+    }} />}
+    {showOptimize && <OptimizationPanel onClose={() => setShowOptimize(false)} onApply={() => {
+      setShowOptimize(false);
+      showChange("Budget substitutions applied to your room.");
+    }} />}
   </section>;
 }

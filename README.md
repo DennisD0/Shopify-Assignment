@@ -19,7 +19,7 @@ Open [RoomReady on localhost](http://localhost:3000). Demo Mode works with the b
 
 1. Click **Use a sample room**, leave **Modern Minimalist** and **$1,500** selected, and create your setups.
 2. Choose **Balanced Comfort**. The starting product subtotal is **$1,495**.
-3. Lock the **August Linen Sofa**. Select the coffee table hotspot and switch to **Forma Travertine Table**. The subtotal rises to **$1,635**. **Undo last change** restores the previous selection.
+3. Lock the **August Linen Sofa**. Select the coffee table hotspot and switch to **Forma Travertine Table**. Watch the coffee table change in **Furniture preview** as the subtotal rises to **$1,635**. **Undo last change** restores the previous furniture layer and price.
 4. Open **Make It Fit My Budget**. The proposed table substitution saves **$250** and brings the subtotal to **$1,385**. Apply it and check that the sofa is still locked.
 5. Open **Review My Bundle** and preview either merchant cart. The app shows each variant, merchant, quantity, and price, plus shipping and tax status.
 
@@ -44,7 +44,7 @@ Live mode searches Shopify Global Catalog MCP for US/USD offers. It uses Catalog
 
 RoomReady rechecks prices and availability before preparing a cart. It discovers the storefront’s UCP capabilities, creates and retrieves a separate cart for each merchant, and uses an authenticated checkout session when supported. The merchant-supplied cart link is available for checkout handoff when session creation is unavailable. The buyer completes payment with the merchant. [Shopify Cart MCP](https://shopify.dev/docs/agents/carts-and-checkout/cart-mcp) · [Shopify Checkout MCP](https://shopify.dev/docs/agents/carts-and-checkout/checkout-mcp)
 
-Demo Mode uses fictional merchants, generated furniture images, and simulated carts. Room visualizations are inspiration photos. Uploaded photos serve as references and the optional vision provider can use them for style cues. The app uses manual measurements for simple footprint checks and leaves clearances to the shopper. The demo draft is saved in the browser. Live product snapshots stay in memory and expire after ten minutes. Room inputs are saved locally in both modes. [Shopify catalog usage guidelines](https://shopify.dev/docs/agents/catalog#usage-guidelines)
+Demo Mode uses fictional merchants, generated furniture images, and simulated carts. In Customize, furniture cutouts sit on an empty sample room at approximate scale. Swaps, approved substitutions, and Undo update those layers. Live mode displays merchant product photos in a catalog collage. Inspiration and uploaded room photos are available in separate views, and the optional vision provider can use uploads for style cues. The app uses manual measurements for simple footprint checks and leaves clearances to the shopper. The demo draft is saved in the browser. Live product snapshots stay in memory and expire after ten minutes. Room inputs are saved locally in both modes. [Shopify catalog usage guidelines](https://shopify.dev/docs/agents/catalog#usage-guidelines)
 
 ## Project layout
 
