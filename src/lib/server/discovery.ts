@@ -1,6 +1,6 @@
-import type { Mode, Product, Room, SofaFind } from "../types";
-import { demoInventory } from "../demo";
-import { lookupSofaReference, searchCatalog } from "./catalog";
+import type { Mode, Product, Room, FurnitureFind } from "../types";
+import { demoProducts } from "../demo";
+import { catalogCategory, lookupFurnitureReference, searchCatalog } from "./catalog";
 
 const listingPath = /\/products?\//;
 const ignoredWords = new Set(["sofa", "couch", "try", "the", "with", "from", "for"]);
@@ -18,33 +18,33 @@ function catalogReference(text: string) {
 
 function demoMatch(reference: string): Product | undefined {
   const text = reference.toLowerCase();
-  return demoInventory.sofa.find(product => text === product.id || text === product.variantId || text.includes(product.title.toLowerCase()));
+  return demoProducts.find(product => text === product.id || text === product.variantId || text.includes(product.title.toLowerCase()));
 }
 
-export async function resolveSofaFind(find: SofaFind, room: Room, mode: Mode, ip?: string) {
+export async function resolveFurnitureFind(find: FurnitureFind, room: Room, mode: Mode, ip?: string) {
   const reference = find.reference.trim();
   const listing = catalogReference(reference);
   if (mode === "live" && listing) {
-    const found = await lookupSofaReference(listing, room.zip, ip);
+    const found = await lookupFurnitureReference(listing, room.zip, ip);
     if (found) return { found, match: "exact" as const };
-    throw new Error("Shopify Catalog couldn’t resolve that sofa listing. Try the product name or paste the recommendation text.");
+    throw new Error("Shopify Catalog couldn’t resolve that furniture listing. Try the product name or paste the recommendation text.");
   }
   const exact = mode === "demo" ? demoMatch(reference) : undefined;
   if (exact) return { found: exact, match: "exact" as const };
   const description = reference.replace(/https?:\/\/[^\s]+/g, "").trim();
   if (description.length < 3) {
-    throw new Error("Add the sofa name or describe what you saw. Include the product name when sharing a social post link.");
+    throw new Error("Add the furniture name or describe what you saw. Include the product name when sharing a social post link.");
   }
   if (mode === "live") {
-    const [found] = await searchCatalog("sofa", room, { cues: description, ip });
+    const [found] = await searchCatalog(catalogCategory(description) ?? "sofa", room, { cues: description, ip });
     if (found) return { found, match: "suggestion" as const };
   } else {
     const words = description.toLowerCase().match(/[a-z]{3,}/g)?.filter(word => !ignoredWords.has(word)) ?? [];
-    const ranked = demoInventory.sofa.map(product => {
+    const ranked = demoProducts.map(product => {
       const details = `${product.title} ${product.variant}`.toLowerCase();
       return { product, score: new Set(words.filter(word => details.includes(word))).size };
     }).sort((a, b) => b.score - a.score);
     if (ranked[0].score > 0) return { found: ranked[0].product, match: "suggestion" as const };
   }
-  throw new Error("We couldn’t match that recommendation. Add the product name or a detail such as its color or fabric, or try the shared sofa example.");
+  throw new Error("We couldn’t match that recommendation. Add the product name or a detail such as its color or material.");
 }

@@ -44,7 +44,16 @@ const samples: Record<Category, Sample[]> = {
   ],
 };
 
-const merchants = ["Merchant 2", "Merchant 1", "Juniper House"];
+const merchants = ["Merchant 2", "Merchant 1", "Merchant 3"];
+const featuredMerchants: Readonly<Partial<Record<string, string>>> = {
+  "demo-table-3": "Merchant 4",
+  "demo-rug-3": "Merchant 5",
+  "demo-lamp-3": "Merchant 6",
+  "demo-storage-3": "Merchant 7",
+  "demo-table-4": "Merchant 8",
+  "demo-rug-4": "Merchant 9",
+  "demo-storage-4": "Merchant 10",
+};
 const lowStock = new Set(["demo-sofa-2", "demo-table-2", "demo-rug-2", "demo-lamp-5", "demo-storage-5"]);
 const availableToOrder = new Set(["demo-sofa-4", "demo-table-5", "demo-rug-5", "demo-lamp-2", "demo-storage-2"]);
 
@@ -58,8 +67,10 @@ export const demoInventory: Inventory = Object.fromEntries(categories.map((categ
   category,
   samples[category].map(([title, price, variant, width, depth], i): Product => ({
     id: `demo-${category}-${i}`, variantId: `demo-${category}-${i}-variant`, category, title,
-    variant, price: price * 100, merchant: merchants[(i + categoryIndex) % merchants.length],
+    variant, price: price * 100, merchant: featuredMerchants[`demo-${category}-${i}`] ?? merchants[(i + categoryIndex) % merchants.length],
     image: `/images/${category}-${i}.webp`, styles: i < 3 ? [...styles] : [styles[(i + categoryIndex) % 3]],
     available: true, dimensions: { width, depth },
   })),
 ])) as Inventory;
+
+export const demoProducts = Object.values(demoInventory).flat();

@@ -14,6 +14,22 @@ const run = (reference: string, space = room.sofaSpace) => POST(new Request("htt
   body: JSON.stringify({ mode: "demo", room: { ...room, sofaSpace: space }, find: { reference, source: "social", platform: "instagram" } }),
 }));
 
+test("non-sofa recommendations stay in their own furniture category and are locked into each concept", async () => {
+  for (const [reference, category] of [
+    ["Cove Oval Coffee Table", "table"], ["demo-rug-0", "rug"], ["demo-lamp-0", "lamp"], ["demo-storage-1", "storage"],
+  ]) {
+    const response = await run(reference);
+    assert.equal(response.status, 200);
+    const { decision, concepts }: RoomResult = await response.json();
+    const product = decision?.recommended;
+    assert.equal(product?.category, category);
+    assert.equal(concepts.length, 3);
+    for (const concept of concepts) {
+      assert.ok(concept.lines.some(line => line.locked && line.product.variantId === product?.variantId));
+    }
+  }
+});
+
 test("an inbound sofa that exceeds the wall width gets a measured replacement in each room plan", async () => {
   const response = await run("demo-sofa-5");
   assert.equal(response.status, 200);

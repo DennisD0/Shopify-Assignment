@@ -39,13 +39,13 @@ export type Concept = {
 export type Inventory = Record<Category, Product[]>;
 export const discoverySources = ["assistant", "social", "shared"] as const;
 export type DiscoverySource = (typeof discoverySources)[number];
-export const socialPlatforms = ["instagram", "tiktok"] as const;
+export const socialPlatforms = ["instagram", "tiktok", "reddit", "youtube", "x"] as const;
 export type SocialPlatform = (typeof socialPlatforms)[number];
-export type SofaFind = { reference: string; source: DiscoverySource; platform?: SocialPlatform };
-export type SofaDecision = {
-  find: SofaFind;
+export type FurnitureFind = { reference: string; source: DiscoverySource; platform?: SocialPlatform };
+export type FurnitureDecision = {
+  find: FurnitureFind;
   found: Product;
   match: "exact" | "suggestion";
   recommended?: Product;
 };
-export type RoomResult = { concepts: Concept[]; inventory: Inventory; designNote?: string; decision?: SofaDecision };
+export type RoomResult = { concepts: Concept[]; inventory: Inventory; designNote?: string; decision?: FurnitureDecision };

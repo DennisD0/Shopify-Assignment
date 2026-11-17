@@ -5,7 +5,7 @@ export const zipInput = z.string().regex(/^(?:\d{5})?$/);
 export const categoryInput = z.enum(["sofa", "table", "rug", "lamp", "storage"]);
 export const modeInput = z.enum(["demo", "live"]);
 export const variantInput = z.string().regex(/^gid:\/\/shopify\/ProductVariant\/\d+$/);
-export const sofaFindInput = z.object({
+export const furnitureFindInput = z.object({
   reference: z.string().trim().min(3).max(500),
   source: z.enum(discoverySources),
   platform: z.enum(socialPlatforms).optional(),

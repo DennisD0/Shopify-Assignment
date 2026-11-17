@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { money } from "../budget";
-import { categoryNames, type Category, type Product, type Room, type Strategy, type Style } from "../types";
+import { categories, categoryNames, type Category, type Product, type Room, type Strategy, type Style } from "../types";
 import { accessToken, agentProfile, callMcp } from "./mcp";
 
 const endpoint = "https://catalog.shopify.com/api/ucp/mcp";
@@ -23,6 +23,10 @@ const matchCategory: Record<Category, RegExp> = {
   sofa: /\b(sofa|couch|loveseat|sectional|settee)\b/i, table: /\bcoffee table\b/i,
   rug: /\b(rug|carpet)\b/i, lamp: /\b(floor lamp|standing lamp)\b/i, storage: /\b(tv stand|tv unit|tv cabinet|media console|media cabinet|entertainment console|credenza)\b/i,
 };
+
+export function catalogCategory(title: string) {
+  return categories.find(category => matchCategory[category].test(title));
+}
 
 export function liveCatalogEnabled() {
   return process.env.SHOPIFY_LIVE === "true" && Boolean(agentProfile());
@@ -86,15 +90,17 @@ export async function lookupCatalog(ids: string[], zip: string, categories: Map<
   }));
 }
 
-export async function lookupSofaReference(reference: string, zip: string, ip?: string) {
+export async function lookupFurnitureReference(reference: string, zip: string, ip?: string) {
   const variantQuery = httpsUrl(reference)?.searchParams.get("variant");
   const variantId = reference.startsWith("gid://shopify/ProductVariant/") ? reference :
     variantQuery && /^\d+$/.test(variantQuery) ? `gid://shopify/ProductVariant/${variantQuery}` : undefined;
   const payload = products.parse(await catalogCall("lookup_catalog", {
     ids: [variantId ?? reference], context: context(zip), filters: { available: false },
   }, ip));
-  const matches = payload.products.filter(product => matchCategory.sofa.test(product.title))
-    .flatMap(product => normalize(product, "sofa"));
+  const matches = payload.products.flatMap(product => {
+    const category = catalogCategory(product.title);
+    return category ? normalize(product, category) : [];
+  });
   if (variantId) return matches.find(product => product.variantId === variantId);
   return matches.find(product => product.available) ?? matches[0];
 }

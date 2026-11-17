@@ -11,7 +11,14 @@ export type DemoDeliveryQuote = {
 const profiles: Record<string, { zone: number; standard: number; express: number; leadDays: number }> = {
   "Merchant 1": { zone: 1, standard: 2400, express: 4900, leadDays: 0 },
   "Merchant 2": { zone: 6, standard: 1900, express: 3900, leadDays: 1 },
-  "Juniper House": { zone: 9, standard: 2900, express: 5900, leadDays: 0 },
+  "Merchant 3": { zone: 9, standard: 2900, express: 5900, leadDays: 0 },
+  "Merchant 4": { zone: 1, standard: 2100, express: 4600, leadDays: 1 },
+  "Merchant 5": { zone: 3, standard: 1700, express: 4300, leadDays: 0 },
+  "Merchant 6": { zone: 2, standard: 2600, express: 5200, leadDays: 0 },
+  "Merchant 7": { zone: 8, standard: 2800, express: 5700, leadDays: 2 },
+  "Merchant 8": { zone: 0, standard: 1500, express: 4200, leadDays: 1 },
+  "Merchant 9": { zone: 4, standard: 2200, express: 4700, leadDays: 0 },
+  "Merchant 10": { zone: 7, standard: 2500, express: 5400, leadDays: 1 },
 };
 const defaultProfile = profiles["Merchant 1"];
 

@@ -17,8 +17,8 @@ export const fits = (product: Product, room: Pick<Room, "width" | "depth" | "sof
 };
 export const selectable = (p: Product, room: Room) => p.available && fits(p, room) !== false;
 
-export function chooseSofaForRoom(found: Product, candidates: Product[], room: Room) {
-  const eligible = candidates.filter(product => selectable(product, room) && product.price <= room.budget);
+export function chooseFurnitureForRoom(found: Product, candidates: Product[], room: Room) {
+  const eligible = candidates.filter(product => product.category === found.category && selectable(product, room) && product.price <= room.budget);
   const original = eligible.find(product => product.variantId === found.variantId);
   if (original) return original;
   return eligible.sort((a, b) =>
@@ -82,9 +82,9 @@ const tiers = [
   { id: "elevated", name: "Elevated Style", description: "Statement pieces and upgraded finishes for a more considered space.", photo: "/images/room-elevated.webp" },
 ];
 
-export function makeConcepts(inventory: Inventory, room: Room, startingSofa?: Product): Concept[] {
+export function makeConcepts(inventory: Inventory, room: Room, startingProduct?: Product): Concept[] {
   const lists = categories.map((category) => {
-    if (category === "sofa" && startingSofa) return [startingSofa];
+    if (category === startingProduct?.category) return [startingProduct];
     const usable = inventory[category].filter((p) => selectable(p, room));
     const matching = usable.filter((p) => p.styles.includes(room.style));
     return (matching.length >= 3 ? matching : usable).sort((a, b) => a.price - b.price);
@@ -94,7 +94,7 @@ export function makeConcepts(inventory: Inventory, room: Room, startingSofa?: Pr
   const concepts = tiers.map((tier, index) => ({
     ...tier,
     lines: tiersByCategory.map(products => ({
-      product: products[index], quantity: 1, locked: products[index].variantId === startingSofa?.variantId,
+      product: products[index], quantity: 1, locked: products[index].variantId === startingProduct?.variantId,
     })),
   }));
   const balanced = concepts[1];

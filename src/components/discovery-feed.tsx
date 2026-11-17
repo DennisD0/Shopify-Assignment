@@ -1,56 +1,87 @@
 import Link from "next/link";
-import { ArrowRight, Camera, CheckCircle2, Film, MessageCircle, Sofa, Sparkles } from "lucide-react";
-import { demoInventory } from "@/lib/demo";
+import { ArrowRight, CheckCircle2, Heart, Store } from "lucide-react";
+import { demoProducts } from "@/lib/demo";
 import { demoBuyerEvidence, demoBuyerPosts } from "@/lib/demo-buyer-stories";
-import { platformLabels, sofaFindPath } from "@/lib/discovery-links";
+import { platformLabels, furnitureFindPath } from "@/lib/discovery-links";
 import { money } from "@/lib/budget";
+import { BookmarkFurniture } from "./bookmark-furniture";
+import { DeliveryHistory } from "./delivery-history";
+import { RoomReadyBrand } from "./roomready-brand";
+import { SocialSourceIcon } from "./social-source-icon";
+
+const feedPosts = demoBuyerPosts.flatMap(post => {
+  const product = demoProducts.find(item => item.id === post.productId);
+  return product ? [{ post, product }] : [];
+});
+
+const merchantPosts = new Map<string, string>();
+for (const { post, product } of feedPosts) {
+  if (!merchantPosts.has(product.merchant)) merchantPosts.set(product.merchant, post.id);
+}
+const merchantShortcuts = [...merchantPosts].sort(([a], [b]) => a.localeCompare(b, "en", { numeric: true }));
 
 export function DiscoveryFeed({ entry }: { entry?: "assistant" | "shared" }) {
   return <>
-    <header className="site-header"><div className="site-inner">
-      <Link className="brand" href="/"><span className="brand-mark"><Sofa size={23} strokeWidth={1.85} /></span><span>Room<span className="brand-accent">Ready</span></span></Link>
-      <Link className="button outline" href="/?setup=1">My room <ArrowRight size={15} /></Link>
+    <header className="site-header feed-site-header"><div className="site-inner">
+      <RoomReadyBrand />
+      <span className="mode-label">Demo Mode</span>
     </div></header>
     <main className="site-inner discovery-feed">
-      <aside className="feed-intro">
-        <h1>See how buyers <em>live with it.</em></h1>
-        <p>Browse sofas from buyer posts. Find one you like and try it in your own room before you buy.</p>
-        <div className="feed-entry-links">
-          <Link className="button outline" href="/demo/discovery?source=assistant"><Sparkles size={16} /> Open a sample AI chat</Link>
-          <Link className="button outline" href="/demo/discovery?source=shared"><MessageCircle size={16} /> Open a sample conversation</Link>
-          <Link className="button ghost" href="/?setup=1&start=1">Paste your own recommendation <ArrowRight size={15} /></Link>
-        </div>
-      </aside>
+      <div className="feed-heading">
+        <h1 className="sr-only">Home</h1>
+        <h2 className="merchant-shortcuts-heading" id="popular-merchants">Popular merchants</h2>
+        <ul className="merchant-shortcuts" aria-labelledby="popular-merchants">
+          {merchantShortcuts.map(([merchant, postId]) => <li key={merchant}>
+            <a href={`#post-${postId}`}>
+              <span className="merchant-ring" aria-hidden="true"><span className="buyer-avatar"><Store size={22} /></span></span>
+              {merchant}
+            </a>
+          </li>)}
+        </ul>
+      </div>
       <section className="feed-stream" aria-label="Buyer feed">
         {entry && <article className="feed-entry">
           <h2>{entry === "assistant" ? "Sample AI recommendation" : "Sample shared conversation"}</h2>
           <p>{entry === "assistant"
             ? "“The Marlow Low Sofa is $749 in pebble twill. Here’s where you can see what buyers said and check it against your space.”"
             : "“I thought of your apartment when I saw the Marlow. Here’s a link to try it in your room.”"}</p>
-          <Link className="button primary" href={sofaFindPath("demo-sofa-5", entry)}>Try the Marlow in my room <ArrowRight size={16} /></Link>
+          <Link className="button primary" href={furnitureFindPath("demo-sofa-5", entry)}>Try the Marlow in my room <ArrowRight size={16} /></Link>
         </article>}
-        {demoBuyerPosts.map(post => {
-          const sofa = demoInventory.sofa.find(product => product.id === post.productId);
-          if (!sofa) return null;
-          const { count, posts } = demoBuyerEvidence(sofa.id);
-          const otherPosts = posts.filter(candidate => candidate.platform !== post.platform);
-          const PlatformIcon = post.platform === "instagram" ? Camera : Film;
+        {feedPosts.map(({ post, product }) => {
+          const { count, likes, posts } = demoBuyerEvidence(product.id);
+          const otherPosts = posts.filter(candidate => candidate.id !== post.id);
           return <article id={`post-${post.id}`} key={post.id} className="feed-post" aria-labelledby={`post-title-${post.id}`}>
             <header>
               <div className="buyer-avatar" aria-hidden="true">{post.buyer[0]}</div>
               <div className="buyer-byline"><strong>{post.buyer}</strong><span>{post.context}</span></div>
-              <span className="feed-platform"><PlatformIcon size={14} /> Sample {platformLabels[post.platform]} post</span>
+              <span className="feed-platform"><SocialSourceIcon platform={post.platform} size={14} /> Source: {platformLabels[post.platform]} · Sample post</span>
             </header>
-            <img className="feed-product-image" src={sofa.image} alt={`${sofa.title} in ${sofa.variant}`} />
+            <img className="feed-product-image" src={product.image} alt={`${product.title} in ${product.variant}`} />
+            <div className="feed-post-engagement">
+              <div className="feed-engagement-stats">
+                <p className="feed-proof"><CheckCircle2 size={15} /> <strong>{count} verified buyers</strong><span>Sample purchase data</span></p>
+                {likes && <p className="buyer-like-note"><Heart size={14} /> {likes} sample likes</p>}
+              </div>
+              <BookmarkFurniture productId={product.id} name={product.title} platform={post.platform} />
+            </div>
             <div className="feed-post-body">
+              <div className="feed-product-details"><strong>{product.title}</strong><span>{product.merchant} · {product.variant}</span></div>
+              <dl className="feed-product-facts">
+                <div><dt>Price before shipping</dt><dd>{money(product.price)}</dd></div>
+                <div><dt>Width × depth</dt><dd>{product.dimensions ? `${product.dimensions.width} × ${product.dimensions.depth} in` : "Size unavailable"}</dd></div>
+                <DeliveryHistory merchant={product.merchant} />
+              </dl>
               <h2 id={`post-title-${post.id}`}>{post.topic}</h2>
-              <blockquote>“{post.quote}”</blockquote>
-              <div className="feed-product-details"><div><strong>{sofa.title}</strong><span>{sofa.variant}</span></div><strong>{money(sofa.price)}</strong></div>
-              <p className="feed-proof"><CheckCircle2 size={15} /> <strong>{count} verified buyers</strong><span>Sample purchase data</span></p>
-              {otherPosts.length > 0 && <div className="feed-other-posts">Also shown on {otherPosts.map(other =>
-                <a key={other.id} href={`#post-${other.id}`}>{platformLabels[other.platform]} <ArrowRight size={12} /></a>)}</div>}
-              <Link className="button primary feed-action" href={sofaFindPath(sofa.id, "social", post.platform)}>
-                Try this sofa in my room <ArrowRight size={16} />
+              <div className="feed-buyer-comment">
+                <small>Sample buyer comment</small>
+                <blockquote>“{post.quote}”</blockquote>
+              </div>
+              {post.delivery && <p className="feed-delivery-report"><strong>Sample delivery · {post.delivery.method === "express" ? "Express" : "Standard"}</strong>
+                <span>Quoted by day {post.delivery.quotedDays} · Arrived day {post.delivery.arrivedDays} (business days)</span></p>}
+              {otherPosts.length > 0 && <div className="feed-other-posts">More buyer posts {otherPosts.map(other =>
+                <a key={other.id} href={`#post-${other.id}`}><SocialSourceIcon platform={other.platform} size={13} />{other.buyer} on {platformLabels[other.platform]} <ArrowRight size={12} aria-hidden="true" /></a>)}</div>}
+              <Link className="button primary feed-action" href={furnitureFindPath(product.id, "social", post.platform)}>
+                Try it in my room <ArrowRight size={16} />
               </Link>
             </div>
           </article>;

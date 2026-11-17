@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, CircleAlert, ExternalLink, LoaderCircle, PackageCheck, ShoppingBag, Trash2, Truck, Zap } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, CircleAlert, ExternalLink, Heart, LoaderCircle, PackageCheck, ShoppingBag, Trash2, Truck, Zap } from "lucide-react";
 import { fits, merchantGroups, money } from "@/lib/budget";
+import { demoBuyerEvidence } from "@/lib/demo-buyer-stories";
+import { platformLabels } from "@/lib/discovery-links";
 import { deliveryWindow, demoDeliveryOptions, quoteDemoDelivery, type DemoDeliveryOption, type DemoDeliveryQuote } from "@/lib/demo-delivery";
 import { useRoom } from "@/lib/store";
 import { categoryNames } from "@/lib/types";
 import { BudgetSummary } from "./editor";
+import { DeliveryHistory } from "./delivery-history";
+import { FurnishingPlan } from "./furnishing-plan";
+import { SocialSourceIcon } from "./social-source-icon";
 import { Button } from "./ui";
 
 type Handoff = { url?: string; warning?: string; error?: string; demo?: boolean; shipping?: number; tax?: number; delivery?: DemoDeliveryQuote; total?: number };
@@ -22,7 +28,7 @@ function MerchantCart({ group, deliveryOption, onDeliveryChange }: {
   useEffect(() => () => request.current?.abort(), []);
   const demo = mode === "demo";
   const quotes = demo ? quoteDemoDelivery(group.merchant, room.zip) : undefined;
-  const blockedByFit = Boolean(result?.decision && group.lines.some(({ product }) => product.category === "sofa" && fits(product, room) === false));
+  const blockedByFit = Boolean(result?.decision && group.lines.some(({ product }) => fits(product, room) === false));
 
   async function prepare() {
     if (request.current) return;
@@ -53,18 +59,26 @@ function MerchantCart({ group, deliveryOption, onDeliveryChange }: {
 
   return <article className="merchant-card">
     <header><div><ShoppingBag size={20} /><h2>{group.merchant}</h2></div><strong>{money(group.total)}</strong></header>
+    {demo && <dl className="review-delivery-history"><DeliveryHistory merchant={group.merchant} /></dl>}
     {group.lines.map(({ product, quantity }) => {
       const fit = fits(product, room);
+      const evidence = demo ? demoBuyerEvidence(product.id) : undefined;
+      const comment = evidence?.posts[0];
       return <div className="review-line" key={product.variantId}>
         <img src={product.image} alt="" />
         <div className="review-line-details"><small>{categoryNames[product.category]}</small><strong>{product.title}</strong><span>{product.variant} · Qty {quantity} · {money(product.price)} each</span>
           {fit === false && <small className="over">Exceeds entered room footprint</small>}
-          {fit === undefined && <small>{product.dimensions ? `${product.dimensions.width} × ${product.dimensions.depth} in · Check room fit` : "Confirm dimensions with merchant"}</small>}
+          <small>{product.dimensions ? `${product.dimensions.width} × ${product.dimensions.depth} in · Width × depth` : "Confirm dimensions with merchant"}</small>
+          {evidence?.likes && <small className="buyer-like-note"><Heart size={13} /> {evidence.likes} sample shoppers liked this</small>}
           {!product.available && <small className="over">Unavailable</small>}
         </div>
         <div className="review-line-actions"><b>{money(product.price * quantity)}</b>
           <Button variant="ghost" aria-label={`Remove ${product.title} from cart`} onClick={() => removeFromCart(product.variantId)}><Trash2 size={14} /> Remove</Button>
         </div>
+        {comment && <div className="review-buyer-comment"><small>Sample buyer comment</small>
+          <blockquote>“{comment.quote}”</blockquote>
+          <Link className="social-attribution" href={`/#post-${comment.id}`}><SocialSourceIcon platform={comment.platform} size={13} /> {comment.buyer} on {platformLabels[comment.platform]}</Link>
+        </div>}
       </div>;
     })}
     {quotes && <fieldset className="delivery-options" disabled={pending}>
@@ -87,7 +101,7 @@ function MerchantCart({ group, deliveryOption, onDeliveryChange }: {
       <p className="merchant-estimate"><span>Est. total before tax</span><strong>{money(group.total + quotes[deliveryOption].price)}</strong></p>
     </fieldset>}
     <div className="merchant-footer">
-      {blockedByFit && <p className="notice"><CircleAlert size={16} /> This sofa exceeds your measured space. Swap it in Customize or remove it from this cart.</p>}
+      {blockedByFit && <p className="notice"><CircleAlert size={16} /> A piece exceeds your measured space. Swap it in Customize or remove it from this cart.</p>}
       {handoff?.error && <p className="error" role="alert"><CircleAlert size={16} /> {handoff.error}</p>}
       {handoff?.warning && <p className="notice" role="status">{handoff.warning}</p>}
       {handoff?.url && (handoff.shipping !== undefined || handoff.tax !== undefined) && <p className="muted">
@@ -107,30 +121,41 @@ function MerchantCart({ group, deliveryOption, onDeliveryChange }: {
 }
 
 export function Review() {
-  const { lines, mode, room, setRoom, navigate, excludedFromCart, restoreToCart } = useRoom();
-  const [deliverySelections, setDeliverySelections] = useState<Partial<Record<string, DemoDeliveryOption>>>({});
+  const { lines, mode, room, result, setRoom, navigate, excludedFromCart, restoreToCart, demoDeliverySelections, setDemoDelivery, applyPurchasePlan } = useRoom();
+  const [planApplied, setPlanApplied] = useState(false);
   const [zip, setZip] = useState(room.zip);
   const cartLines = lines.filter(({ product }) => !excludedFromCart.includes(product.variantId));
   const removed = lines.filter(({ product }) => excludedFromCart.includes(product.variantId));
   const groups = merchantGroups(cartLines);
   const demo = mode === "demo";
   const estimatedShipping = demo ? groups.reduce((total, group) =>
-    total + quoteDemoDelivery(group.merchant, room.zip)[deliverySelections[group.id] ?? "standard"].price, 0) : 0;
+    total + quoteDemoDelivery(group.merchant, room.zip)[demoDeliverySelections[group.id] ?? "standard"].price, 0) : 0;
   const itemsTotal = groups.reduce((total, group) => total + group.total, 0);
 
   return <section>
     <Button variant="ghost" className="back-button" onClick={() => navigate(2)}><ArrowLeft size={16} /> Customize room</Button>
     <div className="editor-heading"><div><div className="eyebrow"><ShoppingBag size={15} /> PURCHASE REVIEW</div><h1>Your room, ready to shop.</h1><p>Review your furniture and continue with each merchant separately.</p></div></div>
+    {demo && lines.length > 0 && <FurnishingPlan lines={lines} room={room}
+      defaultPriority={result?.decision?.found.category}
+      key={JSON.stringify([room.zip, lines.map(({ product, quantity, locked }) => [product.variantId, quantity, locked])])}
+      onApply={(plan, planZip) => {
+        const selected = new Map([...plan.now, ...plan.later].map(line => [line.product.category, line]));
+        applyPurchasePlan(lines.map(line => selected.get(line.product.category) ?? line),
+          plan.later.map(({ product }) => product.variantId), planZip, plan.deliveries);
+        setZip(planZip);
+        setPlanApplied(true);
+      }} />}
+    {planApplied && <p className="notice mb-4" role="status">Plan applied. Buy-now items are in your merchant carts.</p>}
     <div className="review-grid">
       <div className="merchant-list">
-        {groups.map(group => <MerchantCart group={group} deliveryOption={deliverySelections[group.id] ?? "standard"}
-          onDeliveryChange={option => setDeliverySelections(previous => ({ ...previous, [group.id]: option }))}
+        {groups.map(group => <MerchantCart group={group} deliveryOption={demoDeliverySelections[group.id] ?? "standard"}
+          onDeliveryChange={option => setDemoDelivery(group.id, option)}
           key={JSON.stringify([mode, room.zip, group.id, group.lines.map(({ product, quantity }) => [product.variantId, product.price, quantity])])} />)}
         {!groups.length && <p className="notice" role="status"><ShoppingBag size={18} /> Your cart is empty. Add an item back to continue.</p>}
         {removed.length > 0 && <section className="merchant-card removed-items" aria-labelledby="removed-items-heading">
-          <h2 id="removed-items-heading">Saved for later</h2>
-          {removed.map(({ product }) => <div key={product.variantId} className="removed-item">
-            <span>{product.title}</span>
+          <h2 id="removed-items-heading">Buy later</h2>
+          {removed.map(({ product, quantity }) => <div key={product.variantId} className="removed-item">
+            <span>{product.title} · {money(product.price * quantity)}</span>
             <Button variant="ghost" aria-label={`Add ${product.title} back to cart`} onClick={() => restoreToCart(product.variantId)}>Add back</Button>
           </div>)}
         </section>}

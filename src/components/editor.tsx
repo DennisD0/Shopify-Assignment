@@ -1,14 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, ArrowRightLeft, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Lock, LockOpen, ShoppingBag, Undo2, WandSparkles } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, ArrowRightLeft, Bookmark, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, Heart, Lock, LockOpen, Plus, Settings2, ShoppingBag, Trash2, Undo2, WandSparkles } from "lucide-react";
 import { alternatives, fits, money, optimize, remaining, subtotal } from "@/lib/budget";
-import { demoStockStatus } from "@/lib/demo";
-import { useRoom } from "@/lib/store";
-import { categoryNames, type Category, type Inventory, type Line, type Mode, type Product, type Strategy } from "@/lib/types";
+import { demoProducts, demoStockStatus } from "@/lib/demo";
+import { demoBuyerEvidence, sharedLikes } from "@/lib/demo-buyer-stories";
+import { findSourceLabel, platformLabels } from "@/lib/discovery-links";
+import { useSavedFurniture } from "@/lib/saved-furniture";
+import { sampleRoom, useRoom } from "@/lib/store";
+import { categories, categoryNames, type Category, type Inventory, type Line, type Mode, type Product, type Strategy } from "@/lib/types";
 import { Button, Panel } from "./ui";
 import { RoomPreview, furnitureCutout, type RoomView } from "./room-preview";
-import { SelectedSofaFit } from "./sofa-fit";
+import { RoomPreferences } from "./room-preferences";
+import { SocialSourceIcon } from "./social-source-icon";
 const strategies: [Strategy, string][] = [["similar", "Similar Price"], ["save", "Save Money"], ["explore", "Explore Styles"]];
 
 export function BudgetSummary({ lines, budget }: { lines: Line[]; budget: number }) {
@@ -32,7 +37,7 @@ function StockStatus({ product, mode }: { product: Product; mode: Mode }) {
 }
 
 function ProductLine({ line, onSwap }: { line: Line; onSwap: () => void }) {
-  const { lock, room, mode } = useRoom();
+  const { lock, removePiece, room, mode } = useRoom();
   const { product } = line;
   const fit = fits(product, room);
   return <article className={`product-line ${line.locked ? "locked" : ""}`}>
@@ -49,6 +54,7 @@ function ProductLine({ line, onSwap }: { line: Line; onSwap: () => void }) {
         {line.locked ? <Lock size={15} /> : <LockOpen size={15} />}
       </button>
       <button className="swap-button" onClick={onSwap} aria-label={`Swap ${product.title}`}><ArrowRightLeft size={13} /> Swap</button>
+      <button className="icon-button" aria-label={`Remove ${product.title} from room`} title="Remove from room" onClick={() => removePiece(product.variantId)}><Trash2 size={15} /></button>
     </div>
   </article>;
 }
@@ -60,12 +66,12 @@ function ProductImage({ product, alt }: { product: Product; alt: string }) {
 
 function SwapPanel({ line, onClose, onSwap }: { line: Line; onClose: () => void; onSwap: (product: Product) => void }) {
   const { result, room, mode } = useRoom();
-  const [strategy, setStrategy] = useState<Strategy>("similar");
+  const [strategy, setStrategy] = useState<Strategy | "favorites">("similar");
   const [remote, setRemote] = useState<{ strategy: Strategy; products: Product[]; error?: string }>();
   const carousel = useRef<HTMLDivElement>(null);
   const current = line.product;
   useEffect(() => {
-    if (mode !== "live") return;
+    if (mode !== "live" || strategy === "favorites") return;
     const controller = new AbortController();
     fetch("/api/alternatives", {
       method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
@@ -80,22 +86,33 @@ function SwapPanel({ line, onClose, onSwap }: { line: Line; onClose: () => void;
     return () => controller.abort();
   }, [current, mode, room, strategy]);
   const products = [...new Map([...(result?.inventory[current.category] ?? []), ...(remote?.strategy === strategy ? remote.products : [])].map(p => [p.variantId, p])).values()];
-  const options = alternatives(products, current, room, strategy);
+  const likes = mode === "demo" ? demoBuyerEvidence(current.id).likes : undefined;
+  const favoriteOptions = strategy === "favorites" ? alternatives(products, current, room, "similar")
+    .filter(product => demoBuyerEvidence(product.id).likes)
+    .sort((a, b) => sharedLikes(current.id, b.id) - sharedLikes(current.id, a.id) ||
+      (demoBuyerEvidence(b.id).likes ?? 0) - (demoBuyerEvidence(a.id).likes ?? 0)) : [];
+  const options = strategy === "favorites" ? favoriteOptions : alternatives(products, current, room, strategy);
+  const filters = mode === "demo" ? [...strategies, ["favorites", "Buyer favorites"] as const] : strategies;
   const scroll = (direction: number) => carousel.current?.scrollBy({ left: direction * 230, behavior: "smooth" });
   return <Panel drawer title="Swap & Scroll" description={`Explore alternatives for your ${categoryNames[current.category].toLowerCase()}.`} onClose={onClose}>
     <div className="current-product"><ProductImage product={current} alt="" /><div><small>Currently selected</small><strong>{current.title}</strong><StockStatus product={current} mode={mode} /></div><b>{money(current.price)}</b></div>
-    <div className="swap-filters" aria-label="Filter alternatives">{strategies.map(([id, name]) => <button key={id} aria-pressed={strategy === id} onClick={() => { setStrategy(id); carousel.current?.scrollTo({ left: 0 }); }}>{name}</button>)}</div>
+    {likes && <p className="buyer-like-note"><Heart size={14} /> {likes} sample shoppers also liked your pick.</p>}
+    <div className="swap-filters" aria-label="Filter alternatives">{filters.map(([id, name]) => <button key={id} aria-pressed={strategy === id} onClick={() => { setStrategy(id); carousel.current?.scrollTo({ left: 0 }); }}>{name}</button>)}</div>
+    {strategy === "favorites" && <p className="buyer-like-note">See which alternatives were liked by shoppers who also liked your pick. Sample activity.</p>}
     {mode === "live" && remote?.strategy !== strategy && <p role="status" className="muted">Searching Shopify for more options…</p>}
     {remote?.strategy === strategy && remote.error && <p className="notice">{remote.error}</p>}
     {options.length ? <>
       <div className="carousel" ref={carousel}>{options.map(product => {
         const delta = product.price - current.price;
         const fit = fits(product, room);
+        const overlap = strategy === "favorites" ? sharedLikes(current.id, product.id) : 0;
+        const favoriteLikes = strategy === "favorites" ? demoBuyerEvidence(product.id).likes : undefined;
         return <article className="alternative" key={product.variantId}>
           <ProductImage product={product} alt={product.title} />
           <div><h3>{product.title}</h3><p>{product.merchant} · {product.variant}</p>
             <small>{fit === true ? "Fits entered footprint" : product.dimensions ? `${product.dimensions.width} × ${product.dimensions.depth} in` : "Check merchant dimensions"}</small>
             <StockStatus product={product} mode={mode} />
+            {favoriteLikes && <p className="buyer-like-note"><Heart size={13} /> {overlap ? `${overlap} shoppers liked both` : `${favoriteLikes} sample likes`}</p>}
             <div className="alternative-price"><b>{money(product.price)}</b><span className={delta > 0 ? "over" : "under"}>{delta === 0 ? "Same price" : `${delta > 0 ? "+" : "−"}${money(Math.abs(delta))}`}</span></div>
             <Button variant="outline" onClick={() => onSwap(product)}>Switch to this <ArrowRight size={14} /></Button>
           </div>
@@ -154,17 +171,54 @@ function OptimizationPanel({ onClose, onApply }: { onClose: () => void; onApply:
   </Panel>;
 }
 
+function FurniturePicker({ onClose, onChoose }: { onClose: () => void; onChoose: (product: Product, current?: Product) => void }) {
+  const { lines, room, mode, result } = useRoom();
+  const saved = useSavedFurniture(state => state.saved);
+  const [category, setCategory] = useState<Category>("sofa");
+  const live = mode === "live";
+  const products = live ? (result?.inventory[category] ?? []).map(product => ({ product, platform: undefined })) : demoProducts.flatMap(product => {
+    const platform = saved[product.id];
+    return platform ? [{ product, platform }] : [];
+  });
+
+  return <Panel title={live ? "Add furniture" : "Saved furniture"} description="Choose a piece to add to your room or replace one in the same category." onClose={onClose}>
+    {live && <label className="picker-category">Category <select value={category} onChange={event => setCategory(event.target.value as Category)}>
+      {categories.map(key => <option key={key} value={key}>{categoryNames[key]}</option>)}
+    </select></label>}
+    {products.length ? <div className="saved-picker">
+        {products.map(({ product, platform }) => {
+          const current = lines.find(line => line.product.category === product.category)?.product;
+          const inRoom = current?.variantId === product.variantId;
+          const fitsRoom = fits(product, room) !== false;
+          return <article className="current-product saved-picker-product" key={product.id}>
+            <ProductImage product={product} alt="" />
+            <div><small>{categoryNames[product.category]} · {money(product.price)}</small><strong>{product.title}</strong>
+              {platform && <small className="social-attribution"><SocialSourceIcon platform={platform} size={13} /> {platformLabels[platform]}</small>}
+            </div>
+            <Button variant="outline" disabled={inRoom || !fitsRoom || !product.available} onClick={() => onChoose(product, current)}>
+              {inRoom ? "In your room" : !fitsRoom ? "Exceeds room size" : !product.available ? "Unavailable" : "Use in room"}
+            </Button>
+          </article>;
+        })}
+      </div> : live ? <p className="notice">No catalog products are available in this category.</p> : <div className="saved-picker-empty">
+        <p>Save a furniture post on Home and it’ll appear here.</p>
+        <Link className="button outline" href="/">Browse the feed <ArrowRight size={16} /></Link>
+      </div>}
+  </Panel>;
+}
+
 export function Editor() {
-  const { concept, lines, room, mode, result, previous, swap, undo, navigate } = useRoom();
+  const { concept, lines, room, mode, findInput, previous, placeProduct, swap, undo, navigate } = useRoom();
   const [selection, setSelection] = useState<string>();
   const [showOptimize, setShowOptimize] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
+  const [showPreferences, setShowPreferences] = useState(false);
   const [view, setView] = useState<RoomView>(mode === "demo" && room.photo.startsWith("data:") ? "overlay" : "furniture");
   const [updateMessage, setUpdateMessage] = useState("");
   const [collapsed, setCollapsed] = useState(false);
   const previewRef = useRef<HTMLElement>(null);
   if (!concept) return null;
   const selected = lines.find(line => line.product.variantId === selection);
-  const sofa = lines.find(line => line.product.category === "sofa")?.product;
 
   function showChange(message: string) {
     setView(current => current === "overlay" ? "overlay" : "furniture");
@@ -173,23 +227,26 @@ export function Editor() {
   }
 
   return <section>
-    <Button variant="ghost" className="back-button" onClick={() => navigate(1)}><ArrowLeft size={16} /> {result?.decision ? "Return to fit check" : "Room concepts"}</Button>
-    <div className="editor-heading"><div><div className="eyebrow">{room.style}</div><h1>Make it yours.</h1><p>{concept.name} · {lines.length} furniture pieces</p></div>
-      {previous && <Button variant="outline" onClick={() => { undo(); showChange("Last change undone."); }}><Undo2 size={16} /> Undo last change</Button>}
+    <div className="editor-heading"><div><div className="eyebrow">{room.style}</div><h1>Customize your room</h1><p>{lines.length ? `${lines.length} furniture ${lines.length === 1 ? "piece" : "pieces"}` : "Your room is empty"}{lines.length > 0 && findInput ? ` · Started from ${findSourceLabel(findInput)}` : ""}</p></div>
+      <div className="editor-actions">
+        <Button variant="outline" onClick={() => setShowSaved(true)}>{mode === "demo" ? <><Bookmark size={16} /> Saved furniture</> : <><Plus size={16} /> Add furniture</>}</Button>
+        <Button variant="outline" onClick={() => setShowPreferences(true)}><Settings2 size={16} /> Room preferences</Button>
+        {previous && <Button variant="ghost" onClick={() => { undo(); showChange("Last change undone."); }}><Undo2 size={16} /> Undo last change</Button>}
+      </div>
     </div>
     <div className="editor-grid">
       <div className="editor-main">
-        <RoomPreview concept={concept} lines={lines} photo={room.photo} mode={mode} view={view} onView={setView} onSelect={setSelection} previewRef={previewRef} />
+        <RoomPreview concept={concept} lines={lines} photo={room.photo || sampleRoom} mode={mode} view={view} onView={setView} onSelect={setSelection} previewRef={previewRef} />
         <div role="status">{updateMessage && <p className="room-update"><Check size={15} />{updateMessage}</p>}</div>
-        {result?.decision && sofa && <SelectedSofaFit product={sofa} room={room} onFindAlternative={() => setSelection(sofa.variantId)} />}
-        <div className="optimizer-banner"><div className="feature-icon"><WandSparkles size={22} /></div><div><h3>Keep your favorites.</h3><p>Lock the pieces you love and preview savings on the rest.</p></div>
-          <Button variant="outline" onClick={() => setShowOptimize(true)}>Make It Fit My Budget</Button></div>
+        {lines.length > 0 && <div className="optimizer-banner"><div className="feature-icon"><WandSparkles size={22} /></div><div><h3>Keep your favorites.</h3><p>Lock the pieces you love and preview savings on the rest.</p></div>
+          <Button variant="outline" onClick={() => setShowOptimize(true)}>Make It Fit My Budget</Button></div>}
       </div>
       <aside className="editor-sidebar">
         <button className="furniture-heading" aria-expanded={!collapsed} onClick={() => setCollapsed(!collapsed)}><span>Furniture picks <small>{lines.length}</small></span><ChevronDown size={18} /></button>
         <h2 className="furniture-desktop-heading">Furniture picks <small>{lines.length}</small></h2>
-        <div className={`furniture-list ${collapsed ? "collapsed" : ""}`}>{lines.map(line => <ProductLine line={line} key={line.product.category} onSwap={() => setSelection(line.product.variantId)} />)}</div>
-        <div className="editor-budget"><BudgetSummary lines={lines} budget={room.budget} /><Button className="review-button" onClick={() => navigate(3)}><ShoppingBag size={16} /> Review My Bundle <ArrowRight size={16} /></Button></div>
+        <div className={`furniture-list ${collapsed ? "collapsed" : ""}`}>{lines.length ? lines.map(line => <ProductLine line={line} key={line.product.category} onSwap={() => setSelection(line.product.variantId)} />) :
+          <p className="room-empty-note">{mode === "demo" ? "Add a piece from Saved furniture to get started." : "Choose a piece from the catalog to get started."}</p>}</div>
+        <div className="editor-budget"><BudgetSummary lines={lines} budget={room.budget} /><Button className="review-button" disabled={!lines.length} onClick={() => navigate(3)}><ShoppingBag size={16} /> Review My Bundle <ArrowRight size={16} /></Button></div>
       </aside>
     </div>
     {selected && <SwapPanel key={selection} line={selected} onClose={() => setSelection(undefined)} onSwap={product => {
@@ -201,5 +258,11 @@ export function Editor() {
       setShowOptimize(false);
       showChange("Budget substitutions applied to your room.");
     }} />}
+    {showSaved && <FurniturePicker onClose={() => setShowSaved(false)} onChoose={(product, current) => {
+      placeProduct(product);
+      setShowSaved(false);
+      showChange(current ? `Replaced ${current.title} with ${product.title}.` : `Added ${product.title} to your room.`);
+    }} />}
+    {showPreferences && <RoomPreferences onClose={() => setShowPreferences(false)} onPhoto={() => setView(mode === "demo" ? "overlay" : "photo")} />}
   </section>;
 }
