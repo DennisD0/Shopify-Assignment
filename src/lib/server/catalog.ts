@@ -86,6 +86,19 @@ export async function lookupCatalog(ids: string[], zip: string, categories: Map<
   }));
 }
 
+export async function lookupSofaReference(reference: string, zip: string, ip?: string) {
+  const variantQuery = httpsUrl(reference)?.searchParams.get("variant");
+  const variantId = reference.startsWith("gid://shopify/ProductVariant/") ? reference :
+    variantQuery && /^\d+$/.test(variantQuery) ? `gid://shopify/ProductVariant/${variantQuery}` : undefined;
+  const payload = products.parse(await catalogCall("lookup_catalog", {
+    ids: [variantId ?? reference], context: context(zip), filters: { available: false },
+  }, ip));
+  const matches = payload.products.filter(product => matchCategory.sofa.test(product.title))
+    .flatMap(product => normalize(product, "sofa"));
+  if (variantId) return matches.find(product => product.variantId === variantId);
+  return matches.find(product => product.available) ?? matches[0];
+}
+
 export async function getProduct(id: string, category: Category, zip: string, selected: { name: string; label: string }[] = [], ip?: string) {
   const { product } = details.parse(await catalogCall("get_product", { id, context: context(zip), ...(selected.length ? { selected } : {}) }, ip));
   return product ? { title: product.title, category: categoryNames[category], variants: normalize(product, category) } : undefined;

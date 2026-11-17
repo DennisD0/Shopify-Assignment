@@ -5,15 +5,29 @@ import { money, remaining, subtotal } from "@/lib/budget";
 import { useRoom } from "@/lib/store";
 import { categoryNames } from "@/lib/types";
 import { Button } from "./ui";
+import { SofaComparison } from "./sofa-fit";
 
 export function Concepts() {
-  const { room, result, navigate, choose } = useRoom();
+  const { room, mode, result, navigate, choose, shopSofaFirst } = useRoom();
   if (!result) return null;
+  const balanced = result.concepts.find(concept => concept.id === "balanced");
+  const original = result.decision?.found;
+  const preview = balanced && original ? {
+    ...balanced,
+    id: "buyer-find",
+    name: "Your buyer find",
+    lines: balanced.lines.map(line => line.product.category === "sofa" ? { ...line, product: original, locked: false } : line),
+  } : undefined;
   return <section>
     <Button variant="ghost" className="back-button" onClick={() => navigate(0)}><ArrowLeft size={16} /> Room details</Button>
+    {result.decision && <SofaComparison decision={result.decision} room={room} mode={mode}
+      onPreview={preview ? () => choose(preview) : undefined}
+      onShopSofa={balanced ? () => shopSofaFirst(balanced) : undefined} />}
+    {!result.concepts.length && <Button variant="outline" onClick={() => navigate(0)}>Edit room details <ArrowRight size={16} /></Button>}
+    {result.concepts.length > 0 && <>
     <div className="section-heading">
       <div className="eyebrow"><Sparkles size={15} /> {room.style}</div>
-      <h1>Find your kind of living room.</h1>
+      <h1>{result.decision ? "Build the room around it." : "Find your kind of living room."}</h1>
       <p>Three furniture bundles for a {money(room.budget)} product budget. Pick one to make it yours.</p>
       {result.designNote && <p className="design-note">{result.designNote}</p>}
     </div>
@@ -35,5 +49,6 @@ export function Concepts() {
         </article>;
       })}
     </div>
+    </>}
   </section>;
 }

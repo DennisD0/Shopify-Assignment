@@ -1,18 +1,31 @@
 import { categories, type Concept, type Inventory, type Line, type Product, type Room, type Strategy } from "./types";
+import { sofaFit } from "./sofa-decision";
 
 export const money = (cents: number) => new Intl.NumberFormat("en-US", {
   style: "currency", currency: "USD", maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
 }).format(cents / 100);
 export const subtotal = (lines: Line[]) => lines.reduce((sum, line) => sum + line.product.price * line.quantity, 0);
 export const remaining = (lines: Line[], budget: number) => budget - subtotal(lines);
-export const fits = (product: Product, room: Pick<Room, "width" | "depth">) => {
-  if (!product.dimensions || !room.width || !room.depth) return undefined;
+export const fits = (product: Product, room: Pick<Room, "width" | "depth" | "sofaSpace">) => {
+  const sofa = product.category === "sofa" ? sofaFit(product, room.sofaSpace) : undefined;
+  if (sofa === false) return false;
+  if (!product.dimensions || !room.width || !room.depth) return sofa;
   const { width, depth } = product.dimensions;
   const w = room.width * 12;
   const d = room.depth * 12;
   return (width <= w && depth <= d) || (depth <= w && width <= d);
 };
 export const selectable = (p: Product, room: Room) => p.available && fits(p, room) !== false;
+
+export function chooseSofaForRoom(found: Product, candidates: Product[], room: Room) {
+  const eligible = candidates.filter(product => selectable(product, room) && product.price <= room.budget);
+  const original = eligible.find(product => product.variantId === found.variantId);
+  if (original) return original;
+  return eligible.sort((a, b) =>
+    Number(fits(b, room) === true) - Number(fits(a, room) === true) ||
+    Math.abs(a.price - found.price) - Math.abs(b.price - found.price),
+  )[0];
+}
 
 export function swapLine(lines: Line[], id: string, product: Product): Line[] {
   return lines.map((line) => line.product.variantId === id && product.available &&
@@ -69,8 +82,9 @@ const tiers = [
   { id: "elevated", name: "Elevated Style", description: "Statement pieces and upgraded finishes for a more considered space.", photo: "/images/room-elevated.webp" },
 ];
 
-export function makeConcepts(inventory: Inventory, room: Room): Concept[] {
+export function makeConcepts(inventory: Inventory, room: Room, startingSofa?: Product): Concept[] {
   const lists = categories.map((category) => {
+    if (category === "sofa" && startingSofa) return [startingSofa];
     const usable = inventory[category].filter((p) => selectable(p, room));
     const matching = usable.filter((p) => p.styles.includes(room.style));
     return (matching.length >= 3 ? matching : usable).sort((a, b) => a.price - b.price);
@@ -79,7 +93,9 @@ export function makeConcepts(inventory: Inventory, room: Room): Concept[] {
   const tiersByCategory = lists.map(list => [list[0], list[Math.floor(list.length / 2)], list[list.length - 1]]);
   const concepts = tiers.map((tier, index) => ({
     ...tier,
-    lines: tiersByCategory.map(products => ({ product: products[index], quantity: 1, locked: false })),
+    lines: tiersByCategory.map(products => ({
+      product: products[index], quantity: 1, locked: products[index].variantId === startingSofa?.variantId,
+    })),
   }));
   const balanced = concepts[1];
   const adjustment = optimize(balanced.lines, inventory, room);

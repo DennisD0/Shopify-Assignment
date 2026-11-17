@@ -15,13 +15,14 @@ type MerchantGroup = ReturnType<typeof merchantGroups>[number];
 function MerchantCart({ group, deliveryOption, onDeliveryChange }: {
   group: MerchantGroup; deliveryOption: DemoDeliveryOption; onDeliveryChange: (option: DemoDeliveryOption) => void;
 }) {
-  const { mode, room, removeFromCart } = useRoom();
+  const { mode, room, result, removeFromCart } = useRoom();
   const [handoff, setHandoff] = useState<Handoff>();
   const [pending, setPending] = useState(false);
   const request = useRef<AbortController | null>(null);
   useEffect(() => () => request.current?.abort(), []);
   const demo = mode === "demo";
   const quotes = demo ? quoteDemoDelivery(group.merchant, room.zip) : undefined;
+  const blockedByFit = Boolean(result?.decision && group.lines.some(({ product }) => product.category === "sofa" && fits(product, room) === false));
 
   async function prepare() {
     if (request.current) return;
@@ -86,6 +87,7 @@ function MerchantCart({ group, deliveryOption, onDeliveryChange }: {
       <p className="merchant-estimate"><span>Est. total before tax</span><strong>{money(group.total + quotes[deliveryOption].price)}</strong></p>
     </fieldset>}
     <div className="merchant-footer">
+      {blockedByFit && <p className="notice"><CircleAlert size={16} /> This sofa exceeds your measured space. Swap it in Customize or remove it from this cart.</p>}
       {handoff?.error && <p className="error" role="alert"><CircleAlert size={16} /> {handoff.error}</p>}
       {handoff?.warning && <p className="notice" role="status">{handoff.warning}</p>}
       {handoff?.url && (handoff.shipping !== undefined || handoff.tax !== undefined) && <p className="muted">
@@ -96,7 +98,7 @@ function MerchantCart({ group, deliveryOption, onDeliveryChange }: {
           <> {handoff.delivery.label} delivery · {deliveryWindow(handoff.delivery)} · {money(handoff.total)} before tax.</>}</span>
       </p> :
         handoff?.url ? <a className="button primary" href={handoff.url} target="_blank" rel="noopener noreferrer">Continue to {group.merchant} <ExternalLink size={15} /></a> :
-        <Button variant="outline" disabled={pending || group.lines.some(({ product }) => !product.available)} onClick={() => void prepare()}>
+        <Button variant="outline" disabled={pending || blockedByFit || group.lines.some(({ product }) => !product.available)} onClick={() => void prepare()}>
           {pending ? <LoaderCircle size={16} className="animate-spin" /> : <ShoppingBag size={16} />}
           {pending ? "Preparing cart…" : mode === "demo" ? "Order" : "Prepare merchant checkout"}
         </Button>}
@@ -126,7 +128,7 @@ export function Review() {
           key={JSON.stringify([mode, room.zip, group.id, group.lines.map(({ product, quantity }) => [product.variantId, product.price, quantity])])} />)}
         {!groups.length && <p className="notice" role="status"><ShoppingBag size={18} /> Your cart is empty. Add an item back to continue.</p>}
         {removed.length > 0 && <section className="merchant-card removed-items" aria-labelledby="removed-items-heading">
-          <h2 id="removed-items-heading">Removed items</h2>
+          <h2 id="removed-items-heading">Saved for later</h2>
           {removed.map(({ product }) => <div key={product.variantId} className="removed-item">
             <span>{product.title}</span>
             <Button variant="ghost" aria-label={`Add ${product.title} back to cart`} onClick={() => restoreToCart(product.variantId)}>Add back</Button>

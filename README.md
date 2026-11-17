@@ -1,8 +1,6 @@
 # RoomReady
 
-**Upload your room. Choose your look. Make it yours. Stay on budget.**
-
-RoomReady turns a living-room photo, a style, and a budget into three furniture bundles. Shoppers can discover alternatives piece by piece, keep favorites locked, preview price-saving substitutions, and review their selections in merchant-specific carts.
+RoomReady helps a first-time renter decide whether a sofa they discovered is worth buying for their apartment. The buyer feed shows sample stories linked to specific sofas. A post or shared recommendation carries the product into a fit check, a room preview, and merchant checkout.
 
 ## Run locally
 
@@ -17,11 +15,13 @@ Open [RoomReady on localhost](http://localhost:3000). Demo Mode works with the b
 
 ## Reviewer walkthrough
 
-1. Click **Use a sample room**, leave **Modern Minimalist** and **$1,500** selected, and create your setups.
-2. Choose **Balanced Comfort**. The starting product subtotal is **$1,495**.
-3. Lock the **August Linen Sofa**. Select the coffee table hotspot and switch to **Forma Travertine Table**. Watch the coffee table change in **Furniture preview** as the subtotal rises to **$1,635**. **Undo last change** restores the previous furniture layer and price.
-4. Open **Make It Fit My Budget**. The proposed table substitution saves **$250** and brings the subtotal to **$1,385**. Apply it and check that the sofa is still locked.
-5. Open **Review My Bundle**. Remove or add back furniture, optionally apply a delivery ZIP, and compare the simulated **Standard** and **Express** delivery estimates for each merchant. Select a shipping option to update the estimated total, then click **Order** to simulate that merchant’s order.
+1. Open the [buyer feed](http://localhost:3000). Read Jamie’s sample Instagram post about the Marlow Low Sofa and open **Also shown on TikTok** to see Sam’s delivery story for the same sofa. Both stories and the verified-buyer count are demo fixtures.
+2. Click **Try this sofa in my room**. Use the **80 × 40 in** sample measurements and a **$1,500** budget, then click **Check sofa fit**.
+3. The **84 in** Marlow is **4 in too wide**. The **78 in** Linden fits with **2 in to spare** and costs **$110 less**. Click **Visualize in my room** to try the original in the room preview, then use **Find a sofa that fits** to swap it for the Linden.
+4. Lock the Linden. To show budget optimization, swap the coffee table to **Forma Travertine Table** and select **Make It Fit My Budget**. Apply the proposed table swap and check that the sofa stays locked.
+5. Open **Review My Bundle**, choose delivery, and click **Order** to simulate checkout. From the fit check, **Shop sofa first** puts only the recommended sofa in the cart and saves the other pieces for later.
+
+Demo Mode resolves sample names and share links locally. The feed includes representative Instagram and TikTok posts, an AI recommendation, and a shared conversation. Live Shopify uses Catalog lookup for product links and Catalog search for pasted recommendations. Text search returns a labeled suggestion. If a social URL does not contain a product listing, include the product name or caption. Live inventory supplies no buyer identities or purchase proof in this prototype. Use available dimensions and the shopper’s entered space to check fit.
 
 On a phone, swipe through the furniture cards or the alternatives in the bottom sheet. The editor keeps the subtotal and bundle review action at the bottom of the screen.
 

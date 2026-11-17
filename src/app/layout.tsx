@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "RoomReady | Furnish a room you’ll love",
-  description: "Turn one room, one style, and one budget into a shoppable living room.",
+  title: "RoomReady | Check a sofa before you buy",
+  description: "Bring a sofa recommendation from a chat or social post and check it against your space and budget.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

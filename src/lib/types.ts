@@ -31,9 +31,21 @@ export type Room = {
   width: number;
   depth: number;
   zip: string;
+  sofaSpace?: { width: number; depth: number };
 };
 export type Concept = {
   id: string; name: string; description: string; photo: string; lines: Line[];
 };
 export type Inventory = Record<Category, Product[]>;
-export type RoomResult = { concepts: Concept[]; inventory: Inventory; designNote?: string };
+export const discoverySources = ["assistant", "social", "shared"] as const;
+export type DiscoverySource = (typeof discoverySources)[number];
+export const socialPlatforms = ["instagram", "tiktok"] as const;
+export type SocialPlatform = (typeof socialPlatforms)[number];
+export type SofaFind = { reference: string; source: DiscoverySource; platform?: SocialPlatform };
+export type SofaDecision = {
+  find: SofaFind;
+  found: Product;
+  match: "exact" | "suggestion";
+  recommended?: Product;
+};
+export type RoomResult = { concepts: Concept[]; inventory: Inventory; designNote?: string; decision?: SofaDecision };

@@ -8,6 +8,7 @@ import { useRoom } from "@/lib/store";
 import { categoryNames, type Category, type Inventory, type Line, type Mode, type Product, type Strategy } from "@/lib/types";
 import { Button, Panel } from "./ui";
 import { RoomPreview, furnitureCutout, type RoomView } from "./room-preview";
+import { SelectedSofaFit } from "./sofa-fit";
 const strategies: [Strategy, string][] = [["similar", "Similar Price"], ["save", "Save Money"], ["explore", "Explore Styles"]];
 
 export function BudgetSummary({ lines, budget }: { lines: Line[]; budget: number }) {
@@ -154,24 +155,25 @@ function OptimizationPanel({ onClose, onApply }: { onClose: () => void; onApply:
 }
 
 export function Editor() {
-  const { concept, lines, room, mode, previous, swap, undo, navigate } = useRoom();
+  const { concept, lines, room, mode, result, previous, swap, undo, navigate } = useRoom();
   const [selection, setSelection] = useState<string>();
   const [showOptimize, setShowOptimize] = useState(false);
-  const [view, setView] = useState<RoomView>("furniture");
+  const [view, setView] = useState<RoomView>(mode === "demo" && room.photo.startsWith("data:") ? "overlay" : "furniture");
   const [updateMessage, setUpdateMessage] = useState("");
   const [collapsed, setCollapsed] = useState(false);
   const previewRef = useRef<HTMLElement>(null);
   if (!concept) return null;
   const selected = lines.find(line => line.product.variantId === selection);
+  const sofa = lines.find(line => line.product.category === "sofa")?.product;
 
   function showChange(message: string) {
-    setView("furniture");
+    setView(current => current === "overlay" ? "overlay" : "furniture");
     setUpdateMessage(message);
     requestAnimationFrame(() => previewRef.current?.scrollIntoView({ block: "nearest" }));
   }
 
   return <section>
-    <Button variant="ghost" className="back-button" onClick={() => navigate(1)}><ArrowLeft size={16} /> Room concepts</Button>
+    <Button variant="ghost" className="back-button" onClick={() => navigate(1)}><ArrowLeft size={16} /> {result?.decision ? "Return to fit check" : "Room concepts"}</Button>
     <div className="editor-heading"><div><div className="eyebrow">{room.style}</div><h1>Make it yours.</h1><p>{concept.name} · {lines.length} furniture pieces</p></div>
       {previous && <Button variant="outline" onClick={() => { undo(); showChange("Last change undone."); }}><Undo2 size={16} /> Undo last change</Button>}
     </div>
@@ -179,6 +181,7 @@ export function Editor() {
       <div className="editor-main">
         <RoomPreview concept={concept} lines={lines} photo={room.photo} mode={mode} view={view} onView={setView} onSelect={setSelection} previewRef={previewRef} />
         <div role="status">{updateMessage && <p className="room-update"><Check size={15} />{updateMessage}</p>}</div>
+        {result?.decision && sofa && <SelectedSofaFit product={sofa} room={room} onFindAlternative={() => setSelection(sofa.variantId)} />}
         <div className="optimizer-banner"><div className="feature-icon"><WandSparkles size={22} /></div><div><h3>Keep your favorites.</h3><p>Lock the pieces you love and preview savings on the rest.</p></div>
           <Button variant="outline" onClick={() => setShowOptimize(true)}>Make It Fit My Budget</Button></div>
       </div>

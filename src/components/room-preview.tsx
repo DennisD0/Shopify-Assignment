@@ -2,7 +2,7 @@ import { Images, Layers3, Plus } from "lucide-react";
 import type { CSSProperties, Ref } from "react";
 import { categoryNames, type Category, type Concept, type Line, type Mode, type Product } from "@/lib/types";
 
-export type RoomView = "furniture" | "inspiration" | "photo";
+export type RoomView = "furniture" | "overlay" | "inspiration" | "photo";
 
 const views: [RoomView, string][] = [["furniture", "Furniture preview"], ["inspiration", "Inspiration"], ["photo", "Room photo"]];
 const inspirationHotspots: Record<string, Record<Category, [number, number]>> = {
@@ -40,19 +40,22 @@ export function RoomPreview({ concept, lines, photo, mode, view, onView, onSelec
   concept: Concept; lines: Line[]; photo: string; mode: Mode; view: RoomView;
   onView: (view: RoomView) => void; onSelect: (id: string) => void; previewRef: Ref<HTMLElement>;
 }) {
-  const furniture = view === "furniture";
+  const overlay = view === "overlay";
+  const furniture = view === "furniture" || overlay;
   const catalog = furniture && mode === "live";
+  const availableViews: [RoomView, string][] = mode === "demo" && photo.startsWith("data:") ?
+    [["overlay", "In my photo"], ...views] : views;
   const hotspots = catalog ? catalogHotspots : furniture ? furnitureHotspots : inspirationHotspots[concept.id] ?? inspirationHotspots.balanced;
   const caption = furniture
-    ? catalog ? "Catalog collage · Current product photos" : "Furniture preview · Approximate scale and placement"
+    ? catalog ? "Catalog collage · Current product photos" : overlay ? "Furniture in your photo · Approximate placement" : "Furniture preview · Approximate scale and placement"
     : view === "photo" ? "Reference photo" : "Inspiration photo · Furniture shown may differ from your picks";
   return <figure ref={previewRef} tabIndex={-1} className="room-preview" aria-label={furniture ? "Current furniture preview" : undefined}>
     {furniture ? <div className={`furniture-stage${catalog ? " catalog-stage" : ""}`}>
-      {!catalog && <img className="stage-backdrop" src="/images/furniture-preview/empty-room.webp" alt="" />}
+      {!catalog && <img className="stage-backdrop" src={overlay ? photo : "/images/furniture-preview/empty-room.webp"} alt="" />}
       {lines.map(({ product }) => <FurnitureLayer key={product.variantId} mode={mode} product={product} />)}
     </div> : <img src={view === "photo" ? photo : concept.photo} alt={view === "photo" ? "Your reference room" : `${concept.name} furnished room inspiration`} />}
     <div className="room-image-actions" role="group" aria-label="Room view">
-      {views.map(([id, label]) => <button type="button" key={id} aria-pressed={view === id} onClick={() => onView(id)}>{label}</button>)}
+      {availableViews.map(([id, label]) => <button type="button" key={id} aria-pressed={view === id} onClick={() => onView(id)}>{label}</button>)}
     </div>
     {view !== "photo" && lines.map(({ product }) => <button type="button" key={product.category} className="hotspot"
       style={{ left: `${hotspots[product.category][0]}%`, top: `${hotspots[product.category][1]}%` }}
